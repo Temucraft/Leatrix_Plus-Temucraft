@@ -41,6 +41,28 @@
 		end
 	end
 
+	-- Temucraft 3.3.5: options that need something the 3.3.5 client doesn't have
+	LeaPlusLC.Unavailable335 = {
+		"SimpleAddonListing",	-- the game list of addons is only on the character screen
+		"SetEditModeLayout",	-- no edit mode
+		"HideRaidGroupLabels",	-- no compact raid frames
+		"ShowRaidToggle",		-- no compact raid frames
+		"MuteGameSounds",		-- the 3.3.5 client can't mute single sounds
+		"MuteMountSounds",		-- the 3.3.5 client can't mute single sounds
+		"MuteCustomSounds",		-- the 3.3.5 client can't mute single sounds
+		"EnhanceQuestTaller",	-- the 3.3.5 quest log is the wide two-page one already
+	}
+
+	-- Temucraft 3.3.5: names the Classic code uses for frames 3.3.5 names differently
+	if DressUpFrame and not DressUpFrame.DressUpModel then DressUpFrame.DressUpModel = DressUpModel end
+	DressUpModelFrame = DressUpModelFrame or DressUpModel
+	DressUpModelFrameRotateLeftButton = DressUpModelFrameRotateLeftButton or DressUpModelRotateLeftButton
+	DressUpModelFrameRotateRightButton = DressUpModelFrameRotateRightButton or DressUpModelRotateRightButton
+	EventUtil.ContinueOnAddOnLoaded("Blizzard_InspectUI", function()
+		InspectModelFrameRotateLeftButton = InspectModelFrameRotateLeftButton or InspectModelRotateLeftButton
+		InspectModelFrameRotateRightButton = InspectModelFrameRotateRightButton or InspectModelRotateRightButton
+	end)
+
 	-- Check for ElvUI
 	if C_AddOns.IsAddOnLoaded("ElvUI") then LeaPlusLC.ElvUI = unpack(ElvUI) end
 
@@ -4071,59 +4093,60 @@
 			end
 
 			----------------------------------------------------------------------
-			-- Setup
+			-- Setup (3.3.5: the old action button functions)
 			----------------------------------------------------------------------
 
-			-- Function to set up an action button
-			local function SetupActionButton(button)
-				if hookedButtons[button] then return end
-				hooksecurefunc(button, "UpdateUsable", UpdateActionButton)
-				button:HookScript("OnShow", FlashShownOrHidden)
-				button:HookScript("OnHide", FlashShownOrHidden)
-				hooksecurefunc(button, "StartFlash", FlashStarted)
-				hookedButtons[button] = true
+			-- 3.3.5 buttons keep the icon and hotkey as named regions
+			local function Prepare(button)
+				local name = button:GetName()
+				button.icon = button.icon or (name and _G[name .. "Icon"])
+				button.HotKey = button.HotKey or (name and _G[name .. "HotKey"])
+				return button.icon and button.HotKey
 			end
 
-			-- Function to set up a pet button
-			local function SetupPetButton(button)
-				if hookedButtons[button] then return end
-				hooksecurefunc(button, "StartFlash", FlashStarted)
-				button:HookScript("OnShow", FlashShownOrHidden)
-				button:HookScript("OnHide", FlashShownOrHidden)
-				hookedButtons[button] = true
-			end
-
-			-- Set up action buttons (including any created later)
-			ActionBarButtonEventsFrame:ForEachFrame(SetupActionButton)
-			hooksecurefunc(ActionBarButtonEventsFrame, "RegisterFrame", function(void, button)
-				SetupActionButton(button)
+			-- Color when the game updates usability, and check range a few times a second
+			hooksecurefunc("ActionButton_UpdateUsable", function(button)
+				if button.action and Prepare(button) then
+					hookedButtons[button] = true
+					UpdateActionButton(button)
+				end
+			end)
+			hooksecurefunc("ActionButton_OnUpdate", function(button, elapsed)
+				if not hookedButtons[button] or not button.action then return end
+				button.lpRange = (button.lpRange or 0) - (elapsed or 0)
+				if button.lpRange <= 0 then
+					button.lpRange = 0.2
+					UpdateActionButton(button)
+				end
 			end)
 
-			-- Range changes are event driven (the game calls this from ACTION_RANGE_CHECK_UPDATE)
-			hooksecurefunc("ActionButton_UpdateRangeIndicator", UpdateRange)
-
-			-- Turn off the game's action button update loop (the attack flash is now an animation)
-			ActionBarButtonUpdateFrame:SetScript("OnUpdate", nil)
-
-			-- Set up pet buttons and update the pet bar when it changes or pet power changes
-			if PetActionBar and PetActionBar.actionButtons then
-				for void, button in pairs(PetActionBar.actionButtons) do
-					SetupPetButton(button)
-				end
-				hooksecurefunc(PetActionBar, "Update", UpdatePetBar)
-				local petFrame = CreateFrame("FRAME")
-				petFrame:RegisterUnitEvent("UNIT_POWER_UPDATE", "pet")
-				petFrame:SetScript("OnEvent", function()
-					UpdatePetBar(PetActionBar)
-				end)
+			-- Pet bar (3.3.5 has PetActionButton1-10 and no PetActionBar object)
+			local PetActionBar = {actionButtons = {}}
+			for i = 1, NUM_PET_ACTION_SLOTS do
+				local button = _G["PetActionButton" .. i]
+				if button and Prepare(button) then PetActionBar.actionButtons[i] = button end
 			end
+			hooksecurefunc("PetActionBar_Update", function() UpdatePetBar(PetActionBar) end)
+			local petFrame = CreateFrame("FRAME")
+			petFrame:RegisterUnitEvent("UNIT_MANA", "pet")
+			petFrame:RegisterUnitEvent("UNIT_ENERGY", "pet")
+			petFrame:RegisterUnitEvent("UNIT_FOCUS", "pet")
+			petFrame:SetScript("OnEvent", function()
+				UpdatePetBar(PetActionBar)
+			end)
 
 			-- Color everything once at startup
 			C_Timer.After(1 / 30, function()
-				ActionBarButtonEventsFrame:ForEachFrame(UpdateActionButton)
-				if PetActionBar and PetActionBar.actionButtons then
-					UpdatePetBar(PetActionBar)
+				for _, bar in ipairs({"ActionButton", "MultiBarBottomLeftButton", "MultiBarBottomRightButton", "MultiBarRightButton", "MultiBarLeftButton", "BonusActionButton"}) do
+					for i = 1, NUM_ACTIONBAR_BUTTONS do
+						local button = _G[bar .. i]
+						if button and button.action and Prepare(button) then
+							hookedButtons[button] = true
+							UpdateActionButton(button)
+						end
+					end
 				end
+				UpdatePetBar(PetActionBar)
 			end)
 
 		end
@@ -6976,11 +6999,13 @@
 
 		if LeaPlusLC["QuestFontChange"] == "On" then
 
-			-- Set gossip frame scroll box layout
-			GossipFrame.GreetingPanel.ScrollBox:SetHeight(320)
-			GossipFrame.GreetingPanel.ScrollBar:ClearAllPoints()
-			GossipFrame.GreetingPanel.ScrollBar:SetPoint("TOPLEFT", GossipFrame.GreetingPanel.ScrollBox, "TOPRIGHT", 4, 9)
-			GossipFrame.GreetingPanel.ScrollBar:SetPoint("BOTTOMLEFT", GossipFrame.GreetingPanel.ScrollBox, "BOTTOMRIGHT", 4, -14)
+			-- Set gossip frame scroll box layout (3.3.5: the gossip frame has no scroll box)
+			if GossipFrame.GreetingPanel then
+				GossipFrame.GreetingPanel.ScrollBox:SetHeight(320)
+				GossipFrame.GreetingPanel.ScrollBar:ClearAllPoints()
+				GossipFrame.GreetingPanel.ScrollBar:SetPoint("TOPLEFT", GossipFrame.GreetingPanel.ScrollBox, "TOPRIGHT", 4, 9)
+				GossipFrame.GreetingPanel.ScrollBar:SetPoint("BOTTOMLEFT", GossipFrame.GreetingPanel.ScrollBox, "BOTTOMRIGHT", 4, -14)
+			end
 
 			-- Create configuration panel
 			local QuestTextPanel = LeaPlusLC:CreatePanel("Resize quest text", "QuestTextPanel")
@@ -7051,11 +7076,11 @@
 			-- Function to set the text size
 			local function MailSizeUpdate()
 				local MailFont, void, flags = QuestFont:GetFont()
-				OpenMailBodyText:SetFont("h1", MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
-				OpenMailBodyText:SetFont("h2", MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
-				OpenMailBodyText:SetFont("h3", MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
-				OpenMailBodyText:SetFont("p", MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
-				MailEditBox:GetEditBox():SetFont(MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
+				-- 3.3.5: SimpleHTML takes one font for all elements, and the send box is SendMailBodyEditBox
+				if not pcall(OpenMailBodyText.SetFont, OpenMailBodyText, "p", MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags) then
+					OpenMailBodyText:SetFont(MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
+				end
+				SendMailBodyEditBox:SetFont(MailFont, LeaPlusLC["LeaPlusMailFontSize"], flags)
 			end
 
 			-- Set text size after changing slider and on startup
@@ -7305,6 +7330,7 @@
 		if LeaPlusLC["NoClassBar"] == "On" and not LeaLockList["NoClassBar"] then
 			local stancebar = CreateFrame("FRAME", nil, UIParent)
 			stancebar:Hide()
+			local StanceBar = StanceBar or ShapeshiftBarFrame -- 3.3.5 name
 			StanceBar:UnregisterAllEvents()
 			StanceBar:SetParent(stancebar)
 		end
@@ -7472,10 +7498,18 @@
 				end
 			end
 
-			-- Process new chat frames and combat log
-			hooksecurefunc("FloatingChatFrame_UpdateBackgroundAnchors", function(self)
-				self:SetClampRectInsets(0, 0, 0, 0)
-			end)
+			-- Process new chat frames and combat log (3.3.5 has no FloatingChatFrame_UpdateBackgroundAnchors)
+			if FloatingChatFrame_UpdateBackgroundAnchors then
+				hooksecurefunc("FloatingChatFrame_UpdateBackgroundAnchors", function(self)
+					self:SetClampRectInsets(0, 0, 0, 0)
+				end)
+			else
+				hooksecurefunc("FCF_DockUpdate", function()
+					for i = 1, NUM_CHAT_WINDOWS do
+						if _G["ChatFrame" .. i] then _G["ChatFrame" .. i]:SetClampRectInsets(0, 0, 0, 0) end
+					end
+				end)
+			end
 
 			-- Process temporary chat frames
 			hooksecurefunc("FCF_OpenTemporaryWindow", function()
@@ -8659,10 +8693,10 @@
 				-- Declare variables
 				local t, barTime = -1, -1
 
-				-- Create status bar below dungeon ready popup
-				local bar = CreateFrame("StatusBar", nil, PVPReadyDialog)
-				bar:SetPoint("TOPLEFT", PVPReadyDialog, "BOTTOMLEFT", 0, -5)
-				bar:SetPoint("TOPRIGHT", PVPReadyDialog, "BOTTOMRIGHT", 0, -5)
+				-- Create status bar below the battleground entry popup
+				-- (3.3.5: the entry popup is the CONFIRM_BATTLEFIELD_ENTRY static popup)
+				local bar = CreateFrame("StatusBar", nil, UIParent)
+				bar:Hide()
 				bar:SetHeight(5)
 				bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
 				bar:SetStatusBarColor(1.0, 0.85, 0.0)
@@ -8684,9 +8718,16 @@
 					barTime = barTime + elapsed
 				end)
 
-				-- Show frame when PvP ready frame shows
-				hooksecurefunc("PVPReadyDialog_Display", function(self, id)
-					t = GetBattlefieldPortExpiration(id) + 1
+				-- Show frame when the entry popup shows
+				hooksecurefunc("StaticPopup_Show", function(which, text1, text2, id)
+					if which ~= "CONFIRM_BATTLEFIELD_ENTRY" then return end
+					local dialog = StaticPopup_FindVisible(which, id)
+					if not dialog then return end
+					bar:SetParent(dialog)
+					bar:ClearAllPoints()
+					bar:SetPoint("TOPLEFT", dialog, "BOTTOMLEFT", 0, -5)
+					bar:SetPoint("TOPRIGHT", dialog, "BOTTOMRIGHT", 0, -5)
+					t = (GetBattlefieldPortExpiration(id) or 0) + 1
 					-- t = 89; -- debug
 					if t and t > 1 then
 						bar:SetMinMaxValues(0, t)
@@ -8697,8 +8738,8 @@
 					end
 				end)
 
-				PVPReadyDialog:HookScript("OnHide", function()
-					bar:Hide()
+				hooksecurefunc("StaticPopup_Hide", function(which)
+					if which == "CONFIRM_BATTLEFIELD_ENTRY" then bar:Hide() end
 				end)
 
 				-- Debug
@@ -9639,7 +9680,14 @@
 			local miniFrame = CreateFrame("FRAME")
 			local LibDBIconStub = LibStub("LibDBIcon-1.0")
 
-			QuestWatchFrame:SetFrameStrata("LOW")
+			-- 3.3.5: the zone bar above the minimap is MinimapBorderTop
+			if not MinimapCluster.BorderTop then MinimapCluster.BorderTop = MinimapBorderTop end
+			-- 3.3.5 names for the minimap buttons, and stand-ins for ones it doesn't have
+			local MinimapToggleButton = MinimapToggleButton or CreateFrame("Button")
+			local LFGMinimapFrame = LFGMinimapFrame or MiniMapLFGFrame
+			local MinimapCompassTextureUnderlay = MinimapCompassTextureUnderlay or Minimap:CreateTexture()
+
+			;(QuestWatchFrame or WatchFrame):SetFrameStrata("LOW") -- 3.3.5: WatchFrame
 
 			-- Function to set button radius
 			local function SetButtonRad()
@@ -11781,7 +11829,7 @@
 
 			do
 
-				local model = DressUpFrame.DressUpModel
+				local model = DressUpFrame.DressUpModel or DressUpModel -- 3.3.5: DressUpModel
 				local buttons, slotOrder = {}, {}
 				local slotInfo, hiddenSlots, triedOn, nudeSaved = {}, {}, {}, {} -- What is in each slot, slots taken off, slots with a tried on item, slots to put back on after nude
 				local setID, modelUnit, modelGUID, isOther, selfDressing, isNude = 0, nil, nil, false, false, false
@@ -12826,23 +12874,26 @@
 				DressUpFrame.DressUpModel:SetUnit("player")
 			end)
 
-			-- Auction house
-			local BtnStrata, BtnLevel = SideDressUpModelResetButton:GetFrameStrata(), SideDressUpModelResetButton:GetFrameLevel()
+			-- Auction house (3.3.5 has no side dressing room)
+			if SideDressUpModel then
+				-- Auction house
+				local BtnStrata, BtnLevel = SideDressUpModelResetButton:GetFrameStrata(), SideDressUpModelResetButton:GetFrameLevel()
 
-			-- Add buttons to auction house dressup frame
-			LeaPlusLC:CreateButton("DressUpSideBtn", SideDressUpModelResetButton, "Tabard", "BOTTOMLEFT", -36, -31, 60, 22, false, "")
-			LeaPlusCB["DressUpSideBtn"]:SetFrameStrata(BtnStrata)
-			LeaPlusCB["DressUpSideBtn"]:SetFrameLevel(BtnLevel)
-			LeaPlusCB["DressUpSideBtn"]:SetScript("OnClick", function()
-				SideDressUpModel:UndressSlot(19)
-			end)
+				-- Add buttons to auction house dressup frame
+				LeaPlusLC:CreateButton("DressUpSideBtn", SideDressUpModelResetButton, "Tabard", "BOTTOMLEFT", -36, -31, 60, 22, false, "")
+				LeaPlusCB["DressUpSideBtn"]:SetFrameStrata(BtnStrata)
+				LeaPlusCB["DressUpSideBtn"]:SetFrameLevel(BtnLevel)
+				LeaPlusCB["DressUpSideBtn"]:SetScript("OnClick", function()
+					SideDressUpModel:UndressSlot(19)
+				end)
 
-			LeaPlusLC:CreateButton("DressUpSideNudeBtn", SideDressUpModelResetButton, "Nude", "BOTTOMRIGHT", 39, -31, 60, 22, false, "")
-			LeaPlusCB["DressUpSideNudeBtn"]:SetFrameStrata(BtnStrata)
-			LeaPlusCB["DressUpSideNudeBtn"]:SetFrameLevel(BtnLevel)
-			LeaPlusCB["DressUpSideNudeBtn"]:SetScript("OnClick", function()
-				SideDressUpModel:Undress()
-			end)
+				LeaPlusLC:CreateButton("DressUpSideNudeBtn", SideDressUpModelResetButton, "Nude", "BOTTOMRIGHT", 39, -31, 60, 22, false, "")
+				LeaPlusCB["DressUpSideNudeBtn"]:SetFrameStrata(BtnStrata)
+				LeaPlusCB["DressUpSideNudeBtn"]:SetFrameLevel(BtnLevel)
+				LeaPlusCB["DressUpSideNudeBtn"]:SetScript("OnClick", function()
+					SideDressUpModel:Undress()
+				end)
+			end
 
 
 			----------------------------------------------------------------------
@@ -12854,7 +12905,7 @@
 			CharacterModelFrameRotateRightButton:HookScript("OnShow", CharacterModelFrameRotateRightButton.Hide)
 			DressUpModelFrameRotateLeftButton:HookScript("OnShow", DressUpModelFrameRotateLeftButton.Hide)
 			DressUpModelFrameRotateRightButton:HookScript("OnShow", DressUpModelFrameRotateRightButton.Hide)
-			SideDressUpModelControlFrame:HookScript("OnShow", SideDressUpModelControlFrame.Hide)
+			if SideDressUpModelControlFrame then SideDressUpModelControlFrame:HookScript("OnShow", SideDressUpModelControlFrame.Hide) end
 
 			----------------------------------------------------------------------
 			-- Toggle character attributes (supports CharacterStatsClassic)
@@ -12971,14 +13022,14 @@
 			end)
 
 			-- Reset side dressup when reset button clicked
-			SideDressUpModelResetButton:HookScript("OnClick", function()
+			if SideDressUpModelResetButton then SideDressUpModelResetButton:HookScript("OnClick", function()
 				SideDressUpModel.rotation = 0
 				SideDressUpModel:SetRotation(0)
 				SideDressUpModel:SetPosition(0, 0, 0)
 				SideDressUpModel.zoomLevel = 0
 				SideDressUpModel:SetPortraitZoom(0)
 				SideDressUpModel:RefreshCamera()
-			end)
+			end) end
 
 			----------------------------------------------------------------------
 			-- Inspect system
@@ -15062,15 +15113,17 @@
 			hooksecurefunc("QuestLog_Update", function()
 				local numEntries, numQuests = GetNumQuestLogEntries()
 				if numEntries == 0 then return end
-				-- Traverse quests in log
-				for i = 1, QUESTS_DISPLAYED do
-					local questIndex = i + FauxScrollFrame_GetOffset(QuestLogListScrollFrame)
+				-- Traverse quests in log (3.3.5: a hybrid scroll frame with QuestLogScrollFrame.buttons)
+				local buttons = QuestLogScrollFrame and QuestLogScrollFrame.buttons
+				if not buttons then return end
+				for i = 1, #buttons do
+					local questIndex = i + HybridScrollFrame_GetOffset(QuestLogScrollFrame)
 					-- Can use below line instead of FauxScrollFrame_GetOffset (Wrath Classic uses QuestLogTitleButton_Resize)
 					-- local questIndex = i + math.floor(QuestLogListScrollFrame:GetVerticalScroll() / QUESTLOG_QUEST_HEIGHT)
 					if questIndex <= numEntries then
 						-- Get quest title and check
-						local questLogTitle = _G["QuestLogTitle" .. i]
-						local questCheck = _G["QuestLogTitle" .. i .. "Check"]
+						local questLogTitle = buttons[i]
+						local questCheck = questLogTitle.check
 						local title, level, suggestedGroup, isHeader = GetQuestLogTitle(questIndex)
 						if title and level and not isHeader and LeaPlusLC["EnhanceQuestLevels"] == "On" then
 							-- Add level tag if its not a header
@@ -15085,10 +15138,11 @@
 							end
 							local questTextFormatted = string.format("  [%d" .. L[levelSuffix] .. "] %s", level, title)
 							questLogTitle:SetText(questTextFormatted)
-							QuestLogDummyText:SetText(questTextFormatted)
+							-- 3.3.5 places the check mark and tag after the new text
+							QuestLogTitleButton_Resize(questLogTitle)
 						end
-						-- Show tracking check mark
-						local checkText = _G["QuestLogTitle" .. i .. "NormalText"]
+						-- Show tracking check mark (3.3.5 does this in QuestLogTitleButton_Resize)
+						local checkText = nil
 						if checkText then
 							local checkPos = checkText:GetStringWidth()
 							if checkPos then
@@ -19968,6 +20022,14 @@
 							temp[1]:SetHighlightTexture(0)
 							temp[1]:SetScript("OnEnter", nil)
 						end
+					end
+
+					-- Temucraft 3.3.5: options the 3.3.5 client has nothing for (turned off and locked)
+					for void, option in ipairs(LeaPlusLC.Unavailable335) do
+						if LeaPlusCB[option] then
+							Lock(option, L["Not available on the 3.3.5 client"])
+						end
+						LeaPlusLC[option] = "Off"
 					end
 
 					-- Disable items that conflict with Easy Frames
