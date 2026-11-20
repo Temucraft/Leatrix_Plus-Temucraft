@@ -56,8 +56,16 @@
 	-- Temucraft 3.3.5: names the Classic code uses for frames 3.3.5 names differently
 	if DressUpFrame and not DressUpFrame.DressUpModel then DressUpFrame.DressUpModel = DressUpModel end
 	DressUpModelFrame = DressUpModelFrame or DressUpModel
+	UIWidgetTopCenterContainerFrame = UIWidgetTopCenterContainerFrame or WorldStateAlwaysUpFrame
 	DressUpModelFrameRotateLeftButton = DressUpModelFrameRotateLeftButton or DressUpModelRotateLeftButton
 	DressUpModelFrameRotateRightButton = DressUpModelFrameRotateRightButton or DressUpModelRotateRightButton
+	EventUtil.ContinueOnAddOnLoaded("Blizzard_TradeSkillUI", function()
+		TradeSkillInvSlotDropdown = TradeSkillInvSlotDropdown or TradeSkillInvSlotDropDown
+		TradeSkillSubClassDropdown = TradeSkillSubClassDropdown or TradeSkillSubClassDropDown
+	end)
+	EventUtil.ContinueOnAddOnLoaded("Blizzard_TrainerUI", function()
+		ClassTrainerFrame.FilterDropdown = ClassTrainerFrame.FilterDropdown or ClassTrainerFrameFilterDropDown
+	end)
 	EventUtil.ContinueOnAddOnLoaded("Blizzard_InspectUI", function()
 		InspectModelFrameRotateLeftButton = InspectModelFrameRotateLeftButton or InspectModelRotateLeftButton
 		InspectModelFrameRotateRightButton = InspectModelFrameRotateRightButton or InspectModelRotateRightButton
@@ -1478,7 +1486,7 @@
 						local function FileExists(path)
 							if GetFileIDFromPath then return GetFileIDFromPath(path) ~= nil end
 							local loaded = probe:SetTexture(path)
-							probe:SetTexture(nil)
+							probe:SetTexture("")
 							if loaded == false then return false end
 							return true
 						end
@@ -2317,7 +2325,7 @@
 					card.glow:SetVertexColor(1, 1, 1, 1)
 					card.glow:SetGradient("VERTICAL", CreateColor(r, g, b, 0), CreateColor(r, g, b, 0.16))
 					-- Icon or portrait
-					card.icon:SetTexture(nil)
+					card.icon:SetTexture("")
 					-- (round portraits and class icons are cropped to the square inside the circle, to match the square 3D portrait)
 					local function InnerSquare(left, right, top, bottom)
 						local w, h = right - left, bottom - top
@@ -2454,7 +2462,7 @@
 				-- The link cannot be copied, as the game does not let a link box show a hidden value.
 				local function ShowHiddenAuraCard(auraID, auraName)
 					-- Set up the card as normal with blank lines (these set the layout), then show the hidden values over them
-					ShowIDCard({kind = L["Aura"], name = " ", sub = " ", url = " ", icon = 134400, color = {0.6, 0.6, 0.65}})
+					ShowIDCard({kind = L["Aura"], name = " ", sub = " ", url = " ", icon = "Interface\\Icons\\INV_Misc_QuestionMark", color = {0.6, 0.6, 0.65}})
 					local card = LeaPlusLC.IDCard
 					if not card.hiddenTitle then
 						card.hiddenTitle = card:CreateFontString(nil, "OVERLAY", "GameFontNormalHuge")
@@ -10843,9 +10851,9 @@
 			-- Hide zone text
 			if LeaPlusDB["SquareMinimap"] == "On" then
 				MinimapCluster.BorderTop:SetTexture("")
-				MinimapToggleButton:SetNormalTexture(0)
-				MinimapToggleButton:SetPushedTexture(0)
-				MinimapToggleButton:SetHighlightTexture(0)
+				MinimapToggleButton:SetNormalTexture("")
+				MinimapToggleButton:SetPushedTexture("")
+				MinimapToggleButton:SetHighlightTexture("")
 				MinimapToggleButton:EnableMouse(false)
 				if LeaPlusLC["HideMiniZoneText"] == "On" then
 					MinimapZoneTextButton:Hide()
@@ -10858,9 +10866,9 @@
 			else
 				if LeaPlusLC["HideMiniZoneText"] == "On" then
 					MinimapCluster.BorderTop:SetTexture("")
-					MinimapToggleButton:SetNormalTexture(0)
-					MinimapToggleButton:SetPushedTexture(0)
-					MinimapToggleButton:SetHighlightTexture(0)
+					MinimapToggleButton:SetNormalTexture("")
+					MinimapToggleButton:SetPushedTexture("")
+					MinimapToggleButton:SetHighlightTexture("")
 					MinimapToggleButton:EnableMouse(false)
 					MinimapZoneTextButton:Hide()
 				end
@@ -10913,7 +10921,11 @@
 					end
 				end
 				SetTimeClockButtonFunc()
-				hooksecurefunc("TimeManagerClockButton_UpdateShowClockSetting", SetTimeClockButtonFunc)
+				if TimeManagerClockButton_UpdateShowClockSetting then
+					hooksecurefunc("TimeManagerClockButton_UpdateShowClockSetting", SetTimeClockButtonFunc)
+				else
+					hooksecurefunc("TimeManagerClockButton_Show", SetTimeClockButtonFunc) -- 3.3.5
+				end
 			end)
 
 			-- Function to toggle clock
@@ -15598,17 +15610,11 @@
 				-- Set default auction duration value to saved settings or default settings
 				AuctionFrameAuctions.duration = LeaPlusDB["AHDuration"] or 3
 
-				-- Update duration radio button
-				AuctionsShortAuctionButton:SetChecked(false)
-				AuctionsMediumAuctionButton:SetChecked(false)
-				AuctionsLongAuctionButton:SetChecked(false)
-				if AuctionFrameAuctions.duration == 1 then
-					AuctionsShortAuctionButton:SetChecked(true)
-				elseif AuctionFrameAuctions.duration == 2 then
-					AuctionsMediumAuctionButton:SetChecked(true)
-				elseif AuctionFrameAuctions.duration == 3 then
-					AuctionsLongAuctionButton:SetChecked(true)
-				end
+				-- Update duration (3.3.5: a dropdown instead of radio buttons)
+				UIDropDownMenu_SetSelectedValue(DurationDropDown, AuctionFrameAuctions.duration)
+				DurationDropDown:HookScript("OnShow", function()
+					UIDropDownMenu_SetSelectedValue(DurationDropDown, AuctionFrameAuctions.duration)
+				end)
 
 				-- Functions
 				local function CreateAuctionCB(name, anchor, x, y, text)
@@ -15871,7 +15877,7 @@
 			topCenterHolder:SetPoint("TOP", UIParent, "TOP", 0, -15)
 			topCenterHolder:SetSize(10, 58)
 
-			local topCenterContainer = _G.UIWidgetTopCenterContainerFrame
+			local topCenterContainer = _G.UIWidgetTopCenterContainerFrame or WorldStateAlwaysUpFrame -- 3.3.5
 			topCenterContainer:ClearAllPoints()
 			topCenterContainer:SetPoint('CENTER', topCenterHolder)
 
@@ -16120,7 +16126,8 @@
 				_G[chtfrm .. "ButtonFrameUpButton"]:Hide()
 				_G[chtfrm .. "ButtonFrameDownButton"]:Hide()
 				_G[chtfrm .. "ButtonFrame"]:SetSize(0.1, 0.1)
-				_G[chtfrm .. "MinimizeButton"]:SetParent(tframe)
+				;(_G[chtfrm .. "MinimizeButton"] or _G[chtfrm .. "ButtonFrameMinimizeButton"]):SetParent(tframe) -- 3.3.5 name
+				if _G[chtfrm .. "ButtonFrameBottomButton"] then _G[chtfrm .. "ButtonFrameBottomButton"]:SetParent(tframe) end
 			end
 
 			FriendsMicroButton:Hide()
@@ -16194,7 +16201,7 @@
 
 			-- Hide chat menu buttons
 			ChatFrameMenuButton:SetParent(tframe)
-			ChatFrameChannelButton:SetParent(tframe)
+			if ChatFrameChannelButton then ChatFrameChannelButton:SetParent(tframe) end -- not on 3.3.5
 
 			-- Set options for normal and existing chat frames
 			for i = 1, 50 do
@@ -18261,10 +18268,12 @@
 			-- Blizzard Settings tooltip
 			----------------------------------------------------------------------
 
-			-- Set tooltip scale when tooltip is shown
-			SettingsTooltip:HookScript("OnShow", function()
-				SettingsTooltip:SetScale(LeaPlusLC["LeaPlusTipSize"] * UIParent:GetScale())
-			end)
+			-- Set tooltip scale when tooltip is shown (3.3.5 has no settings tooltip)
+			if SettingsTooltip then
+				SettingsTooltip:HookScript("OnShow", function()
+					SettingsTooltip:SetScale(LeaPlusLC["LeaPlusTipSize"] * UIParent:GetScale())
+				end)
+			end
 
 			---------------------------------------------------------------------------------------------------------
 			-- Other tooltip code
@@ -19216,7 +19225,9 @@
 				if oldHandle then StopSound(oldHandle) end
 				-- Play music file (entries are path#filedataid)
 				local file, soundID = playlist[tracknumber]:match("^(.-)#(%d+)")
-				willPlay, musicHandle = PlaySoundFile(tonumber(soundID) or soundID, "Master")
+				-- 3.3.5: music plays by path with PlayMusic (it repeats until another track or Stop)
+				PlayMusic("Sound\\Music\\" .. (file:gsub("/", "\\")))
+				willPlay, musicHandle = true, "music"
 				if willPlay and musicHandle then
 					-- Watch the track and play the next one when it stops playing
 					failedTracks = 0
@@ -20019,7 +20030,7 @@
 						-- Remove hover from configuration button if there is one
 						local temp = {LeaPlusCB[option]:GetChildren()}
 						if temp and temp[1] and temp[1].t and temp[1].t:GetTexture() == "Interface\\WorldMap\\Gear_64.png" then
-							temp[1]:SetHighlightTexture(0)
+							temp[1]:SetHighlightTexture("")
 							temp[1]:SetScript("OnEnter", nil)
 						end
 					end
@@ -20892,12 +20903,19 @@
 			mbtn:SetHighlightTexture("Interface\\AddOns\\Leatrix_Plus\\Leatrix_Plus.blp")
 			mbtn:GetHighlightTexture():SetTexCoord(0, 0.125, 0.21875, 0.25)
 
-			-- Hide the default textures
-			mbtn:HookScript("OnShow", function() mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end)
-			mbtn:HookScript("OnEnable", function() mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end)
-			mbtn:HookScript("OnDisable", function() mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end)
-			mbtn:HookScript("OnMouseDown", function() mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end)
-			mbtn:HookScript("OnMouseUp", function() mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end)
+			-- Hide the default textures (3.3.5: the button template has whole textures, not left, middle and right pieces)
+			local function HideSlices()
+				if mbtn.Left then mbtn.Left:Hide(); mbtn.Middle:Hide(); mbtn.Right:Hide() end
+			end
+			if not mbtn.Left then
+				if not naked then mbtn:SetPushedTexture("Interface\\AddOns\\Leatrix_Plus\\Leatrix_Plus.blp"); mbtn:GetPushedTexture():SetTexCoord(0.125, 0.25, 0.21875, 0.25) end
+				mbtn:SetDisabledTexture("Interface\\AddOns\\Leatrix_Plus\\Leatrix_Plus.blp"); mbtn:GetDisabledTexture():SetTexCoord(0.125, 0.25, 0.21875, 0.25)
+			end
+			mbtn:HookScript("OnShow", HideSlices)
+			mbtn:HookScript("OnEnable", HideSlices)
+			mbtn:HookScript("OnDisable", HideSlices)
+			mbtn:HookScript("OnMouseDown", HideSlices)
+			mbtn:HookScript("OnMouseUp", HideSlices)
 
 		end
 

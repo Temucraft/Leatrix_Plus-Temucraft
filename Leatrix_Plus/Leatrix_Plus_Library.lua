@@ -895,7 +895,7 @@ end
 function lib:ResetButtonHighlightTexture(name)
 	local button = lib:GetMinimapButton(name)
 	if button then
-		button:SetHighlightTexture(136477) --"Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight"
+		button:SetHighlightTexture("Interface\\Minimap\\UI-Minimap-ZoomButton-Highlight") -- 3.3.5: paths, not file ids
 	end
 end
 
@@ -930,7 +930,7 @@ function lib:ResetButtonBorder(name)
 		button.border:Show()
 		button.border:ClearAllPoints()
 		button.border:SetPoint("TOPLEFT", 0, 0)
-		button.border:SetTexture(136430) --"Interface\\Minimap\\MiniMap-TrackingBorder"
+		button.border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			button.border:SetSize(50, 50)
 		else
@@ -969,7 +969,7 @@ function lib:ResetButtonBackground(name)
 	if button.background then
 		button.background:Show()
 		button.background:ClearAllPoints()
-		button.background:SetTexture(136467) --"Interface\\Minimap\\UI-Minimap-Background"
+		button.background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
 		if WOW_PROJECT_ID == WOW_PROJECT_MAINLINE then
 			button.background:SetSize(24, 24)
 			button.background:SetPoint("CENTER", 0, 0)
