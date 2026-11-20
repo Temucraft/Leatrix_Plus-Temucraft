@@ -20845,7 +20845,7 @@
 	-- Create a dropdown menu (using standard dropdown template)
 	function LeaPlusLC:CreateDropdown(frame, label, width, anchor, parent, relative, x, y, reload, items)
 
-		local RadioDropdown = CreateFrame("DropdownButton", nil, parent, "WowStyle1DropdownTemplate")
+		local RadioDropdown = CreateFrame("Button", nil, parent, "WowStyle1DropdownTemplate")
 		LeaPlusCB[frame] = RadioDropdown
 		RadioDropdown:SetPoint(anchor, parent, relative, x, y)
 		RadioDropdown:SetWidth(width)
