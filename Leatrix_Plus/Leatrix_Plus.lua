@@ -1,3 +1,4 @@
+if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.UnitEnv) end -- Temucraft: nameplate unit tokens
 ----------------------------------------------------------------------
 -- 	Leatrix Plus 1.15.166 (11th November 2026)
 ----------------------------------------------------------------------
