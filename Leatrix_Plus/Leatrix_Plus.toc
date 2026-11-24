@@ -3,7 +3,7 @@
 ## Title: Leatrix Plus
 ## Notes: curseforge.com/wow/addons/leatrix-plus
 
-## Version: 1.15.166
+## Version: 1.15.166.1
 ## X-Temucraft: 3.3.5 port of the Classic version (needs !TemucraftCompat)
 ## Dependencies: !TemucraftCompat
 ## Author: Leatrix

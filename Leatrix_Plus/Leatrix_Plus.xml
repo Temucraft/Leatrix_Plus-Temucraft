@@ -65,32 +65,20 @@
 	</ScrollFrame>
 	<ScrollFrame name="LeaPlusConfigurationPanelScrollFrameTemplate" inherits="ScrollFrameTemplate" virtual="true">
 	</ScrollFrame>
+	<!-- Temucraft: the newer slider is drawn with atlas textures, which the 3.3.5 client doesn't have (the bar and
+	     the knob were invisible). This is the 3.3.5 options slider look. -->
 	<Slider name="LeaPlusConfigurationPanelSliderTemplate" orientation="HORIZONTAL" enableMouse="true" virtual="true">
+		<Size><AbsDimension x="100" y="17"/></Size>
 		<HitRectInsets>
 			<AbsInset left="0" right="0" top="-10" bottom="-10"/>
 		</HitRectInsets>
-		<Layers>
-			<Layer>
-				<Texture parentKey="Left" atlas="Minimal_SliderBar_Left" useAtlasSize="true">
-					<Anchors>
-						<Anchor point="LEFT"/>
-					</Anchors>
-				</Texture>
-				<Texture parentKey="Right" atlas="Minimal_SliderBar_Right" useAtlasSize="true">
-					<Anchors>
-						<Anchor point="RIGHT"/>
-					</Anchors>
-				</Texture>
-				<Texture parentKey="Middle" atlas="_Minimal_SliderBar_Middle" useAtlasSize="true">
-					<Anchors>
-						<Anchor point="TOPLEFT" relativeKey="$parent.Left" relativePoint="TOPRIGHT"/>
-						<Anchor point="TOPRIGHT" relativeKey="$parent.Right" relativePoint="TOPLEFT"/>
-					</Anchors>
-				</Texture>
-			</Layer>
-		</Layers>
-		<ThumbTexture parentKey="Thumb" atlas="Minimal_SliderBar_Button" useAtlasSize="false">
-			<Size x="16" y="16"/>
+		<Backdrop bgFile="Interface\Buttons\UI-SliderBar-Background" edgeFile="Interface\Buttons\UI-SliderBar-Border" tile="true">
+			<EdgeSize><AbsValue val="8"/></EdgeSize>
+			<TileSize><AbsValue val="8"/></TileSize>
+			<BackgroundInsets><AbsInset left="3" right="3" top="6" bottom="6"/></BackgroundInsets>
+		</Backdrop>
+		<ThumbTexture file="Interface\Buttons\UI-SliderBar-Button-Horizontal">
+			<Size><AbsDimension x="32" y="32"/></Size>
 		</ThumbTexture>
 	</Slider>
 </Ui>
