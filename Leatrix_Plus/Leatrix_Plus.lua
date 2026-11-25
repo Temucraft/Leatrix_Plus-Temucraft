@@ -21487,7 +21487,7 @@ if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.U
 					-- Show world map ID
 					local mapID = WorldMapFrame.mapID or nil
 					local artID = C_Map.GetMapArtID(mapID) or nil
-					local mapName = C_Map.GetMapInfo(mapID).name or nil
+					local mapName = (C_Map.GetMapInfo(mapID) or {}).name -- Temucraft: nil map in custom zones
 					if mapID and artID and mapName then
 						LeaPlusLC:Print(mapID .. " (" .. artID .. "): " .. mapName .. " (map)")
 					end
@@ -21495,7 +21495,7 @@ if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.U
 					-- Show character map ID
 					local mapID = C_Map.GetBestMapForUnit("player") or nil
 					local artID = C_Map.GetMapArtID(mapID) or nil
-					local mapName = C_Map.GetMapInfo(mapID).name or nil
+					local mapName = (C_Map.GetMapInfo(mapID) or {}).name -- Temucraft: nil map in custom zones
 					if mapID and artID and mapName then
 						LeaPlusLC:Print(mapID .. " (" .. artID .. "): " .. mapName .. " (player)")
 					end
@@ -21504,7 +21504,8 @@ if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.U
 			elseif str == "pos" then
 				-- Map POI code builder
 				local mapID = C_Map.GetBestMapForUnit("player") or nil
-				local mapName = C_Map.GetMapInfo(mapID).name or nil
+				local mapName = (C_Map.GetMapInfo(mapID) or {}).name -- Temucraft: nil map in custom zones
+				if not mapID or not mapName then return end
 				local mapRects = {}
 				local tempVec2D = CreateVector2D(0, 0)
 				local void
@@ -21586,7 +21587,7 @@ if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.U
 						-- Show world map ID
 						local mapID = WorldMapFrame.mapID or nil
 						local artID = C_Map.GetMapArtID(mapID) or nil
-						local mapName = C_Map.GetMapInfo(mapID).name or nil
+						local mapName = (C_Map.GetMapInfo(mapID) or {}).name -- Temucraft: nil map in custom zones
 						if mapID and artID and mapName then
 							LeaPlusLC:Print(mapID .. " (" .. artID .. "): " .. mapName .. " (map)")
 						end
@@ -21594,7 +21595,7 @@ if TemucraftCompat and TemucraftCompat.UnitEnv then setfenv(1, TemucraftCompat.U
 						-- Show character map ID
 						local mapID = C_Map.GetBestMapForUnit("player") or nil
 						local artID = C_Map.GetMapArtID(mapID) or nil
-						local mapName = C_Map.GetMapInfo(mapID).name or nil
+						local mapName = (C_Map.GetMapInfo(mapID) or {}).name -- Temucraft: nil map in custom zones
 						if mapID and artID and mapName then
 							LeaPlusLC:Print(mapID .. " (" .. artID .. "): " .. mapName .. " (player)")
 						end
